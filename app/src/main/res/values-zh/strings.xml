@@ -256,7 +256,6 @@
     <string name="fallback_label">回退路由</string>
     <string name="fallback_none">无</string>
     <string name="field_fallback_to">回退目标</string>
-</resources>
     <string name="brevent_status_not_installed">未安装 Brevent</string>
     <string name="brevent_status_unavailable">Brevent 执行通道不可用</string>
     <string name="brevent_status_error">Brevent 状态检查失败</string>
@@ -269,3 +268,4 @@
     <string name="run_blocked_brevent_authorization">Brevent 拒绝了命令（token/权限门禁）；建议使用直连模式</string>
     <string name="run_blocked_brevent_unavailable">Brevent 命令通道不可用，请查看诊断信息</string>
     <string name="run_blocked_brevent_error">Brevent 状态检查失败，请点击状态卡查看详情</string>
+</resources>
