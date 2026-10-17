@@ -185,9 +185,9 @@ internal fun AboutScreen(onBack: () -> Unit) {
                     uriHandler.openUri("https://github.com/compose-miuix-ui/miuix")
                 }
             }
-            item(key = "shizuku") {
-                AboutLink("Shizuku", "github.com/RikkaApps/Shizuku") {
-                    uriHandler.openUri("https://github.com/RikkaApps/Shizuku")
+            item(key = "brevent") {
+                AboutLink("Brevent", "github.com/RikkaApps/Brevent") {
+                    uriHandler.openUri("https://github.com/RikkaApps/Brevent")
                 }
             }
             item(key = "config") {

@@ -12,7 +12,7 @@
 
 For the complete device-porting workflow, kernel-family template links, and tuning rationale, see the [Kernel Profile Porting Guide](docs/kernel_profiles/README.md).
 
-Rows explicitly marked **Shizuku required** run through a shell UserService. Start Shizuku with ADB and tap the status card to grant access; all other rows use the app's normal execution path.
+Rows explicitly marked **Brevent required** need the app running as the shell uid (no seccomp). Start Brevent with ADB and tap the status card; all other rows use the app's normal execution path.
 
 ## Quick Start
 

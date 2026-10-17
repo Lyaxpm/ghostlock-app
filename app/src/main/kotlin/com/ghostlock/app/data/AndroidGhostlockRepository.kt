@@ -21,7 +21,7 @@ import com.ghostlock.app.domain.model.ProfileConfig
 import com.ghostlock.app.domain.model.UserProfileFile
 import com.ghostlock.app.domain.repository.GhostlockRepository
 import com.ghostlock.app.domain.repository.ProfileConfigController
-import com.ghostlock.app.shizuku.ShizukuExploitRunner
+import com.ghostlock.app.brevent.BreventExploitRunner
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runInterruptible
@@ -91,17 +91,17 @@ class AndroidGhostlockRepository(context: Context) : GhostlockRepository {
     private var selectedCpuPair = 0
     private var safeModeEnabled = false
     private var forceAttackTest = false
-    private var shizukuEnabled = false
+    private var breventEnabled = false
     /** True once the user flipped the toggle; only then does it override the
      * profile suggestion (PROFILE-SUGGEST-01). */
-    private var shizukuPreferenceSet = false
+    private var breventPreferenceSet = false
     private var pendingParsedDocument: PendingParsedDocument? = null
-    private val shizukuRunner = ShizukuExploitRunner(appContext)
+    private val breventRunner = BreventExploitRunner(appContext)
 
     init {
         buildCpuPairs()
         restoreCpuPair()
-        restoreShizukuPreference()
+        restoreBreventPreference()
         restoreForceAttackTest()
         dropLegacyOffsetsCache()
         migrateLegacyOffsetsStore()
@@ -153,9 +153,9 @@ class AndroidGhostlockRepository(context: Context) : GhostlockRepository {
         /* PROFILE-SUGGEST-01: recommend_shizuku is a suggestion. It seeds the
          * toggle until the user makes an explicit choice, which then overrides
          * it in both directions. */
-        val recommendShizuku = release in builtinProfiles.recommendShizuku ||
-            importedOffsetsRecommendShizuku(release)
-        val shizukuActive = if (shizukuPreferenceSet) shizukuEnabled else recommendShizuku
+        val recommendBrevent = release in builtinProfiles.recommendBrevent ||
+            importedOffsetsRecommendBrevent(release)
+        val breventActive = if (breventPreferenceSet) breventEnabled else recommendBrevent
         return KernelSnapshot(
             deviceName = resolveDeviceName(),
             kernelRelease = release,
@@ -166,10 +166,10 @@ class AndroidGhostlockRepository(context: Context) : GhostlockRepository {
             selectedCpuPair = selectedCpuPair,
             safeModeEnabled = safeModeEnabled,
             forceAttackTest = forceAttackTest,
-            recommendShizuku = recommendShizuku,
-            shizukuEnabled = shizukuActive,
-            shizukuStatus = if (shizukuActive) shizukuRunner.status()
-            else com.ghostlock.app.domain.model.ShizukuStatus.NOT_REQUIRED,
+            recommendBrevent = recommendBrevent,
+            breventEnabled = breventActive,
+            breventStatus = if (breventActive) breventRunner.status()
+            else com.ghostlock.app.domain.model.BreventStatus.NOT_REQUIRED,
         )
     }
 
@@ -190,15 +190,15 @@ class AndroidGhostlockRepository(context: Context) : GhostlockRepository {
         preferences.edit { putBoolean(PrefForceAttackTest, enabled) }
     }
 
-    override fun setShizukuEnabled(enabled: Boolean) {
-        shizukuEnabled = enabled
-        shizukuPreferenceSet = true
+    override fun setBreventEnabled(enabled: Boolean) {
+        breventEnabled = enabled
+        breventPreferenceSet = true
         appContext.getSharedPreferences("ghostlock_prefs", Context.MODE_PRIVATE)
             .edit {
-                putBoolean("shizuku_enabled", enabled)
-                putBoolean("shizuku_explicit", true)
+                putBoolean("brevent_enabled", enabled)
+                putBoolean("brevent_explicit", true)
             }
-        if (enabled) shizukuRunner.requestPermission()
+        if (enabled) breventRunner.requestPermission()
     }
 
     override fun profileController(): ProfileConfigController = profileController
@@ -397,8 +397,8 @@ class AndroidGhostlockRepository(context: Context) : GhostlockRepository {
             runExploitBinary(pair, "libghostlock.so", archivedLog, debugDir, writeSidecar)
         }
 
-    override suspend fun runExploitWithShizuku(pair: CpuPair, onLog: (String) -> Unit): Int {
-        return withDebugAttackLog("shizuku", onLog) { archivedLog, debugDir, writeSidecar ->
+    override suspend fun runExploitWithBrevent(pair: CpuPair, onLog: (String) -> Unit): Int {
+        return withDebugAttackLog("brevent", onLog) { archivedLog, debugDir, writeSidecar ->
             archivedLog("<s> resolving profile")
             val release = System.getProperty("os.version", "").orEmpty()
             val config = profileController.load(release, pair)
@@ -432,7 +432,7 @@ class AndroidGhostlockRepository(context: Context) : GhostlockRepository {
                     dumpRuntimeProfile(archivedLog, writeSidecar, release, pair, runtimeBlob)
                     archivedLog("<b> starting UserService")
                     resetRunState()
-                    shizukuRunner.run(
+                    breventRunner.run(
                         pair, safeModeEnabled, forceAttackTest, profileBlob, debugDir, archivedLog,
                     ) { step, status ->
                         if (status == "disabled") clearRunState() else applyRunStatus(step, status)
@@ -562,10 +562,10 @@ class AndroidGhostlockRepository(context: Context) : GhostlockRepository {
         }
     }
 
-    override fun requestShizukuPermission() = shizukuRunner.requestPermission()
+    override fun requestBreventPermission() = breventRunner.requestPermission()
 
-    override fun setShizukuStatusListener(listener: (() -> Unit)?) =
-        shizukuRunner.setStatusListener(listener)
+    override fun setBreventStatusListener(listener: (() -> Unit)?) =
+        breventRunner.setStatusListener(listener)
 
     private suspend fun runExploitBinary(
         pair: CpuPair,
@@ -862,7 +862,7 @@ class AndroidGhostlockRepository(context: Context) : GhostlockRepository {
     }
 
     override fun close() {
-        shizukuRunner.close()
+        breventRunner.close()
         synchronized(processes) {
             processes.forEach(Process::destroyForcibly)
             processes.clear()
@@ -922,8 +922,8 @@ class AndroidGhostlockRepository(context: Context) : GhostlockRepository {
     private fun importedOffsetsMatch(version: String): Boolean =
         userProfileStore.containsRelease(version)
 
-    private fun importedOffsetsRecommendShizuku(version: String): Boolean =
-        userProfileStore.recommendsShizuku(version)
+    private fun importedOffsetsRecommendBrevent(version: String): Boolean =
+        userProfileStore.recommendsBrevent(version)
 
     private fun buildCpuPairs() {
         cpuPairs.clear()
@@ -948,10 +948,10 @@ class AndroidGhostlockRepository(context: Context) : GhostlockRepository {
         if (pair.size == 2) cpuPairs.indexOf(CpuPair(pair[0], pair[1])).takeIf { it >= 0 }?.let { selectedCpuPair = it }
     }
 
-    private fun restoreShizukuPreference() {
+    private fun restoreBreventPreference() {
         val prefs = appContext.getSharedPreferences("ghostlock_prefs", Context.MODE_PRIVATE)
-        shizukuPreferenceSet = prefs.getBoolean("shizuku_explicit", false)
-        shizukuEnabled = prefs.getBoolean("shizuku_enabled", false)
+        breventPreferenceSet = prefs.getBoolean("brevent_explicit", false)
+        breventEnabled = prefs.getBoolean("brevent_enabled", false)
     }
 
     private fun restoreForceAttackTest() {

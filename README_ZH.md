@@ -12,7 +12,7 @@
 
 新增设备的完整流程、内核版本模板跳转和公共参数理由见[Kernel Profile 适配指南](docs/kernel_profiles/README_ZH.md)。
 
-明确标记为**需要 Shizuku**的固件通过 shell UserService 执行。先使用 ADB 启动 Shizuku，再点击顶部支持状态区域授权；其余固件沿用应用内执行路径。
+明确标记为**需要 Brevent**的固件要求应用以 shell uid 运行（无 seccomp）。先使用 ADB 启动 Brevent，再点击顶部支持状态区域；其余固件沿用应用内执行路径。
 
 ## 快速开始
 

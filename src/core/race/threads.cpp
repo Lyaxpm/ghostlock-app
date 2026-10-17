@@ -185,7 +185,7 @@ ghostlock::route::RouteStatus ghostlock::race::PiRace::run() noexcept {
     pr_info("[route] CMP_REQUEUE_PI ret=%ld errno=%d; waiting route_done\n",
             rq, errno);
     /* TODO(pi-timeout-01): This wait has no deadline. A route that stalls in
-     * the race window (observed when the Shizuku log pipe applied
+     * the race window (observed when the Brevent log pipe applied
      * backpressure) parks the process forever and the corrupted PI chain is
      * never disarmed. Bound the wait from profile::TargetProfile.execution and map a
      * timeout to ROUTE_DIRTY_FAILURE instead of looping indefinitely. */

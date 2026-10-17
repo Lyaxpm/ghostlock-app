@@ -911,7 +911,7 @@ mod tests {
         let bundled = flatten_conf(&bundled);
 
         assert!(generated.contains_key("route.multicast_waiter.waiter_off"));
-        // The one intentional difference: shizuku defaults to off in generated
+        // The one intentional difference: brevent defaults to off in generated
         // confs, the bundled profile recommends it.
         assert_eq!(
             generated.get("recommend_shizuku").map(String::as_str),

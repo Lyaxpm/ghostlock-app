@@ -19,7 +19,7 @@ interface GhostlockRepository {
     /** Skip the pre-attack KernelSU check and run the exploit as a test. */
     fun setForceAttackTest(enabled: Boolean)
 
-    fun setShizukuEnabled(enabled: Boolean)
+    fun setBreventEnabled(enabled: Boolean)
 
     /**
      * Imports one or more picked documents (file name -> text). Includes are
@@ -110,18 +110,18 @@ interface GhostlockRepository {
 
     suspend fun runExploit(pair: CpuPair, onLog: (String) -> Unit): Int
 
-    suspend fun runExploitWithShizuku(pair: CpuPair, onLog: (String) -> Unit): Int
+    suspend fun runExploitWithBrevent(pair: CpuPair, onLog: (String) -> Unit): Int
 
     /**
      * The step left `in_progress` by the previous run (usually a kernel panic),
-     * or null when the last run completed/failed cleanly. `w3*` means Shizuku
+     * or null when the last run completed/failed cleanly. `w3*` means Brevent
      * (shell uid, no seccomp) can skip that stage.
      */
     suspend fun lastRunStuckStep(): String?
 
-    fun requestShizukuPermission()
+    fun requestBreventPermission()
 
-    fun setShizukuStatusListener(listener: (() -> Unit)?)
+    fun setBreventStatusListener(listener: (() -> Unit)?)
 
     fun close()
 }

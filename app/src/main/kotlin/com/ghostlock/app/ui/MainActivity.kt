@@ -118,8 +118,8 @@ class MainActivity : ComponentActivity() {
                 window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             }
 
-            GhostlockEffect.OpenShizuku -> packageManager
-                .getLaunchIntentForPackage(SHIZUKU_PACKAGE)
+            GhostlockEffect.OpenBrevent -> packageManager
+                .getLaunchIntentForPackage(BREVENT_PACKAGE)
                 ?.let(::startActivity)
         }
     }
@@ -153,7 +153,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private companion object {
-        const val SHIZUKU_PACKAGE = "moe.shizuku.privileged.api"
+        const val BREVENT_PACKAGE = "me.piebridge.brevent"
     }
 }
 
@@ -186,7 +186,7 @@ private fun GhostlockRoute(
             override fun onForceAttackTestChanged(enabled: Boolean) =
                 viewModel.toggleForceAttackTest(enabled)
 
-            override fun onShizukuChanged(enabled: Boolean) = viewModel.toggleShizuku(enabled)
+            override fun onBreventChanged(enabled: Boolean) = viewModel.toggleBrevent(enabled)
             override fun onDialogItemSelected(index: Int) = viewModel.onDialogItemSelected(index)
             override fun onDialogInputChange(value: String) = viewModel.onDialogInputChange(value)
             override fun onDialogConfirm(value: String) = viewModel.onDialogConfirm(value)

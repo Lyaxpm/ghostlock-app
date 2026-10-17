@@ -52,7 +52,7 @@ import com.ghostlock.app.R
 import com.ghostlock.app.domain.model.CpuPair
 import com.ghostlock.app.domain.model.ExecutionFieldValue
 import com.ghostlock.app.domain.model.ProfileFieldNode
-import com.ghostlock.app.domain.model.ShizukuStatus
+import com.ghostlock.app.domain.model.BreventStatus
 import com.ghostlock.app.domain.model.UserProfileFile
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.Card
@@ -96,8 +96,8 @@ data class GhostlockUiState(
     val kernelRelease: String = "",
     val socName: String = "",
     val kernelSupported: Boolean = false,
-    val shizukuEnabled: Boolean = false,
-    val shizukuStatus: ShizukuStatus = ShizukuStatus.NOT_REQUIRED,
+    val breventEnabled: Boolean = false,
+    val breventStatus: BreventStatus = BreventStatus.NOT_REQUIRED,
     val running: Boolean = false,
     val cpuPairLabels: List<String> = emptyList(),
     val cpuPairIndex: Int = 0,
@@ -183,7 +183,7 @@ interface GhostlockActions {
     fun onCpuPairSelected(index: Int)
     fun onSafeModeChanged(enabled: Boolean)
     fun onForceAttackTestChanged(enabled: Boolean)
-    fun onShizukuChanged(enabled: Boolean)
+    fun onBreventChanged(enabled: Boolean)
     fun onDialogItemSelected(index: Int)
     fun onDialogInputChange(value: String)
     fun onDialogConfirm(value: String)
@@ -540,7 +540,7 @@ private fun GhostlockDialog(
                         Spacer(modifier = Modifier.width(12.dp))
                         TextButton(
                             modifier = Modifier.weight(1f),
-                            text = stringResource(R.string.w3_shizuku_hint_enable),
+                            text = stringResource(R.string.w3_brevent_hint_enable),
                             colors = ButtonDefaults.textButtonColorsPrimary(),
                             onClick = { actions.onDialogConfirm("") },
                         )
@@ -643,8 +643,8 @@ private fun MainContent(
                 running = state.running,
                 supported = state.kernelSupported &&
                         state.executionHasProfile &&
-                        (!state.shizukuEnabled ||
-                                state.shizukuStatus == ShizukuStatus.READY),
+                        (!state.breventEnabled ||
+                                state.breventStatus == BreventStatus.READY),
                 profileValid = state.profileInvalidPaths.isEmpty(),
                 labelRes = R.string.action_run,
                 onClick = actions::onRun,
@@ -666,10 +666,10 @@ private fun ControlPanel(
             supported = state.kernelSupported,
             profileAvailable = state.executionHasProfile,
             profileValid = state.profileInvalidPaths.isEmpty(),
-            shizukuEnabled = state.shizukuEnabled,
-            shizukuStatus = state.shizukuStatus,
+            breventEnabled = state.breventEnabled,
+            breventStatus = state.breventStatus,
             onParametersClick = actions::onOpenParameters,
-            onShizukuClick = actions::onStatusClick,
+            onBreventClick = actions::onStatusClick,
             modifier = Modifier.fillMaxWidth(),
         )
         DeviceInfoCard(
@@ -707,20 +707,20 @@ private fun ControlPanel(
             /* PROFILE-SUGGEST-01: the profile suggestion seeds the toggle but no
              * longer hides it; an explicit user choice overrides either way. */
             SwitchPreference(
-                checked = state.shizukuEnabled,
-                onCheckedChange = actions::onShizukuChanged,
-                title = stringResource(R.string.shizuku_label),
+                checked = state.breventEnabled,
+                onCheckedChange = actions::onBreventChanged,
+                title = stringResource(R.string.brevent_label),
                 summary = stringResource(
                     when {
-                        !state.shizukuEnabled -> R.string.shizuku_summary
-                        state.shizukuStatus == ShizukuStatus.READY -> R.string.shizuku_status_ready
-                        state.shizukuStatus == ShizukuStatus.PERMISSION_REQUIRED ->
-                            R.string.shizuku_status_permission_required
+                        !state.breventEnabled -> R.string.brevent_summary
+                        state.breventStatus == BreventStatus.READY -> R.string.brevent_status_ready
+                        state.breventStatus == BreventStatus.PERMISSION_REQUIRED ->
+                            R.string.brevent_status_permission_required
 
-                        state.shizukuStatus == ShizukuStatus.NOT_RUNNING ->
-                            R.string.shizuku_status_not_running
+                        state.breventStatus == BreventStatus.NOT_RUNNING ->
+                            R.string.brevent_status_not_running
 
-                        else -> R.string.shizuku_status_checking
+                        else -> R.string.brevent_status_checking
                     },
                 ),
             )
@@ -740,13 +740,13 @@ private fun ActivationStatusCard(
     supported: Boolean,
     profileAvailable: Boolean,
     profileValid: Boolean,
-    shizukuEnabled: Boolean,
-    shizukuStatus: ShizukuStatus,
+    breventEnabled: Boolean,
+    breventStatus: BreventStatus,
     onParametersClick: () -> Unit,
-    onShizukuClick: () -> Unit,
+    onBreventClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val accessReady = !shizukuEnabled || shizukuStatus == ShizukuStatus.READY
+    val accessReady = !breventEnabled || breventStatus == BreventStatus.READY
     val ready = supported && profileAvailable && profileValid && accessReady
     val missing = !supported || !profileAvailable
     val (backgroundColor, title, icon) = when {
@@ -772,23 +772,23 @@ private fun ActivationStatusCard(
                 isSystemInDarkTheme() -> Color(0xFF3E2F1B)
                 else -> Color(0xFFFFF0DB)
             },
-            if (!profileValid) R.string.kernel_profile_invalid else R.string.shizuku_label,
+            if (!profileValid) R.string.kernel_profile_invalid else R.string.brevent_label,
             Icons.Rounded.ErrorOutline,
         )
     }
     val summary = when {
-        ready && shizukuEnabled -> R.string.kernel_profile_ready_shizuku
+        ready && breventEnabled -> R.string.kernel_profile_ready_brevent
         ready -> R.string.kernel_profile_ready
         !supported -> R.string.kernel_unsupported_summary
         !profileAvailable -> R.string.kernel_profile_required_summary
         !profileValid -> R.string.kernel_profile_invalid_summary
-        shizukuStatus == ShizukuStatus.PERMISSION_REQUIRED ->
-            R.string.shizuku_status_permission_required
+        breventStatus == BreventStatus.PERMISSION_REQUIRED ->
+            R.string.brevent_status_permission_required
 
-        else -> R.string.shizuku_status_not_running
+        else -> R.string.brevent_status_not_running
     }
     val action = if (supported && profileAvailable && profileValid && !accessReady) {
-        onShizukuClick
+        onBreventClick
     } else {
         onParametersClick
     }

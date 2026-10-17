@@ -6,24 +6,24 @@
 > Root the device first, then follow [MEDIATEK.md](MEDIATEK.md) to obtain the
 > two physical addresses (`kernel_phys_load` / `kernel_phys_offset`).
 
-Rows marked **Shizuku recommended** ship a profile with `recommend_shizuku = 1`.
-The app automatically turns on the home-screen **Run via Shizuku** switch for
+Rows marked **Brevent recommended** ship a profile with `recommend_shizuku = 1`.
+The app automatically turns on the home-screen **Run via Brevent** switch for
 them at every start; you can switch it off for the current session, and while it
-is off the app stops asking for Shizuku until the next start.
+is off the app stops asking for Brevent until the next start.
 
-Shizuku runs the exploit as the shell user, which has no seccomp filter, so the
+Brevent runs the exploit as the shell user, which has no seccomp filter, so the
 W3 seccomp bypass stage is skipped. To use it:
 
-1. Start Shizuku (for example over ADB) and keep it running.
+1. Start Brevent (for example over ADB) and keep it running.
 2. Tap the status card at the top of the app and grant access when prompted.
 
 Rows without the marker don't turn the switch on automatically, but **you can
-enable it manually on any device**. Running via Shizuku skips the W3 seccomp
+enable it manually on any device**. Running via Brevent skips the W3 seccomp
 bypass there as well, so it saves time even where it isn't required.
 
 | Kernel                                                 | Devices                                                          |
 |--------------------------------------------------------|------------------------------------------------------------------|
-| `5.15.41-android13-8-g8dc4c75ab7d8-ab1673212412`       | MEIZU 20 Pro · Shizuku recommended                               |
+| `5.15.41-android13-8-g8dc4c75ab7d8-ab1673212412`       | MEIZU 20 Pro · Brevent recommended                               |
 | `5.15.119-android13-8-g6ff5097ee32a-ab1764665171`      | MEIZU 21 Note                                                    |
 | `5.15.167-android13-8-00017-gb1f32b310a30-ab12826353`  | Red Magic 8 Pro                                                  |
 | `5.15.178-android13-8-00025-g7feb0b0b7cd8-ab14134651`  | Sharp AQUOS R8 SH-R80                                            |

@@ -96,10 +96,10 @@ internal class UserProfileStore(
     }
 
     /**
-     * True when any stored document recommends Shizuku for [release]. This is
+     * True when any stored document recommends Brevent for [release]. This is
      * kernel metadata, so it applies regardless of which document is loaded.
      */
-    fun recommendsShizuku(release: String): Boolean {
+    fun recommendsBrevent(release: String): Boolean {
         val byName = documents()
         return files().any { file ->
             val text = runCatching { file.readText() }.getOrNull() ?: return@any false

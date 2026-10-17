@@ -12,7 +12,7 @@ internal class BuiltinProfileCatalog(context: Context) {
 
     private data class Entry(
         val release: String,
-        val recommendShizuku: Boolean,
+        val recommendBrevent: Boolean,
         val fields: Map<String, Long>,
     )
 
@@ -26,8 +26,8 @@ internal class BuiltinProfileCatalog(context: Context) {
         entries.mapTo(linkedSetOf()) { it.release }.filterTo(linkedSetOf()) { !isTemplate(it) }
     }
 
-    val recommendShizuku: Set<String> by lazy {
-        entries.filter { it.recommendShizuku }.mapTo(linkedSetOf()) { it.release }
+    val recommendBrevent: Set<String> by lazy {
+        entries.filter { it.recommendBrevent }.mapTo(linkedSetOf()) { it.release }
     }
 
     val builtin: Map<String, Map<String, Long>> by lazy {
@@ -46,7 +46,7 @@ internal class BuiltinProfileCatalog(context: Context) {
             val profile = readAsset("$BuiltinDirectory/$file")
                 ?.let { HoconSupport.parseValue(it).asValueMap() } ?: return@mapNotNull null
             val fields = flatten(profile)
-            Entry(release, recommendShizuku = fields["recommend_shizuku"] == 1L, fields = fields)
+            Entry(release, recommendBrevent = fields["recommend_shizuku"] == 1L, fields = fields)
         }
     }.getOrDefault(emptyList())
 

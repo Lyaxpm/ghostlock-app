@@ -72,7 +72,7 @@ class Sog10ProfileCoreRegressionTest {
         assertEquals(release, decoded.release)
         assertEquals(3u, decoded.routeKind)
         assertEquals(0u, decoded.fallbackRoute)
-        assertEquals(1u, decoded.recommendShizuku)
+        assertEquals(1u, decoded.recommendBrevent)
         assertNull(decoded.kernelPhysLoad)
         assertEquals(0u, decoded.cred.usageOffset)
         assertEquals(-274698454400L, decoded.cred.ref0Image.toLong())

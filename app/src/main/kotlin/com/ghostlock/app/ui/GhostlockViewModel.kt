@@ -12,7 +12,7 @@ import com.ghostlock.app.domain.model.OffsetImportResult
 import com.ghostlock.app.domain.model.ParseResult
 import com.ghostlock.app.domain.model.ProfileConfig
 import com.ghostlock.app.domain.model.ProfileFieldNode
-import com.ghostlock.app.domain.model.ShizukuStatus
+import com.ghostlock.app.domain.model.BreventStatus
 import com.ghostlock.app.domain.repository.GhostlockRepository
 import com.ghostlock.app.domain.repository.ProfileConfigController
 import com.ghostlock.app.domain.usecase.FormatLogUseCase
@@ -41,7 +41,7 @@ sealed interface GhostlockEffect {
     data class Toast(val resourceId: Int) : GhostlockEffect
     data class Clipboard(val text: String) : GhostlockEffect
     data class KeepScreenAwake(val enabled: Boolean) : GhostlockEffect
-    data object OpenShizuku : GhostlockEffect
+    data object OpenBrevent : GhostlockEffect
 }
 
 private const val OverwriteSummaryLimit = 12
@@ -88,53 +88,53 @@ class GhostlockViewModel(
     fun initialize() {
         if (initialized) return
         initialized = true
-        repository.setShizukuStatusListener { refreshAccessStatus() }
+        repository.setBreventStatusListener { refreshAccessStatus() }
         viewModelScope.launch {
             refreshSnapshot()
-            applyRecommendedShizuku()
-            maybeSuggestShizukuForW3()
+            applyRecommendedBrevent()
+            maybeSuggestBreventForW3()
         }
     }
 
-    private var recommendedShizukuApplied = false
+    private var recommendedBreventApplied = false
 
     /**
-     * Kernels that recommend Shizuku start with the toggle on at every launch;
+     * Kernels that recommend Brevent start with the toggle on at every launch;
      * a manual switch-off still applies for the rest of the session.
      */
-    private fun applyRecommendedShizuku() {
-        if (recommendedShizukuApplied) return
-        recommendedShizukuApplied = true
+    private fun applyRecommendedBrevent() {
+        if (recommendedBreventApplied) return
+        recommendedBreventApplied = true
         val snapshot = kernelSnapshot ?: return
-        if (!snapshot.recommendShizuku || state.value.shizukuEnabled) return
-        toggleShizuku(true)
+        if (!snapshot.recommendBrevent || state.value.breventEnabled) return
+        toggleBrevent(true)
     }
 
     private var w3HintChecked = false
 
     /**
      * The previous run's native log survives export settings; when it failed
-     * at the W3 seccomp bypass in-process, suggest switching to Shizuku.
+     * at the W3 seccomp bypass in-process, suggest switching to Brevent.
      */
-    private suspend fun maybeSuggestShizukuForW3() {
+    private suspend fun maybeSuggestBreventForW3() {
         if (w3HintChecked) return
         w3HintChecked = true
         val step = runCatching { repository.lastRunStuckStep() }.getOrNull() ?: return
-        if (state.value.shizukuEnabled) return
-        /* Any interrupted step is reported; only a W3 stall offers Shizuku,
-         * because Shizuku (shell uid, no seccomp) skips exactly that stage. */
+        if (state.value.breventEnabled) return
+        /* Any interrupted step is reported; only a W3 stall offers Brevent,
+         * because Brevent (shell uid, no seccomp) skips exactly that stage. */
         val isW3 = step.startsWith("w3")
         mutableState.update {
             it.copy(
                 dialogVisible = true,
                 dialogType = if (isW3) DialogType.CONFIRM else DialogType.NOTICE,
                 dialogTitleRes = if (isW3) {
-                    R.string.w3_shizuku_hint_title
+                    R.string.w3_brevent_hint_title
                 } else {
                     R.string.run_interrupted_title
                 },
                 dialogMessageRes = if (isW3) {
-                    R.string.w3_shizuku_hint_message
+                    R.string.w3_brevent_hint_message
                 } else {
                     R.string.run_interrupted_message
                 },
@@ -831,11 +831,11 @@ class GhostlockViewModel(
         mutableState.update { it.copy(forceAttackTestEnabled = enabled) }
     }
 
-    fun toggleShizuku(enabled: Boolean) {
-        repository.setShizukuEnabled(enabled)
-        mutableState.update { it.copy(shizukuEnabled = enabled) }
-        if (!enabled && kernelSnapshot?.recommendShizuku == true) {
-            send(GhostlockEffect.Toast(R.string.shizuku_recommended_hint))
+    fun toggleBrevent(enabled: Boolean) {
+        repository.setBreventEnabled(enabled)
+        mutableState.update { it.copy(breventEnabled = enabled) }
+        if (!enabled && kernelSnapshot?.recommendBrevent == true) {
+            send(GhostlockEffect.Toast(R.string.brevent_recommended_hint))
         }
         // The grant dialog lands in another app, so the status is re-read and
         // onResume() refreshes it again when the dialog closes.
@@ -849,8 +849,8 @@ class GhostlockViewModel(
         val state = state.value
         val messageRes = when {
             !state.executionHasProfile -> R.string.run_blocked_no_profile
-            state.shizukuEnabled && state.shizukuStatus != ShizukuStatus.READY ->
-                R.string.run_blocked_shizuku
+            state.breventEnabled && state.breventStatus != BreventStatus.READY ->
+                R.string.run_blocked_brevent
 
             else -> R.string.profile_invalid
         }
@@ -859,14 +859,14 @@ class GhostlockViewModel(
 
     fun onStatusClick() {
         val snapshot = kernelSnapshot ?: return
-        /* shizukuEnabled already carries the profile suggestion unless the
+        /* breventEnabled already carries the profile suggestion unless the
          * user overrode it (PROFILE-SUGGEST-01). */
-        if (!snapshot.shizukuEnabled) return
-        when (snapshot.shizukuStatus) {
-            ShizukuStatus.NOT_RUNNING -> send(GhostlockEffect.OpenShizuku)
-            ShizukuStatus.PERMISSION_REQUIRED -> repository.requestShizukuPermission()
-            ShizukuStatus.NOT_REQUIRED,
-            ShizukuStatus.READY,
+        if (!snapshot.breventEnabled) return
+        when (snapshot.breventStatus) {
+            BreventStatus.NOT_RUNNING -> send(GhostlockEffect.OpenBrevent)
+            BreventStatus.PERMISSION_REQUIRED -> repository.requestBreventPermission()
+            BreventStatus.NOT_REQUIRED,
+            BreventStatus.READY,
                 -> Unit
         }
     }
@@ -880,19 +880,19 @@ class GhostlockViewModel(
             }
             return
         }
-        val useShizuku = snapshot.shizukuEnabled
-        if (useShizuku && snapshot.shizukuStatus != ShizukuStatus.READY) {
+        val useBrevent = snapshot.breventEnabled
+        if (useBrevent && snapshot.breventStatus != BreventStatus.READY) {
             onStatusClick()
             return
         }
         val pair = snapshot.cpuPairs.getOrNull(snapshot.selectedCpuPair) ?: return
         if (!beginOperation()) return
         send(GhostlockEffect.KeepScreenAwake(true))
-        appendLog("==== start ${if (useShizuku) "Shizuku/V20" else "base"} ====")
+        appendLog("==== start ${if (useBrevent) "Brevent/V20" else "base"} ====")
         appendLog("cpu pair: ${snapshot.cpuPairLabels.getOrElse(snapshot.selectedCpuPair) { pair.toString() }}")
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val code = runExploitUseCase(pair, useShizuku, ::appendLog)
+                val code = runExploitUseCase(pair, useBrevent, ::appendLog)
                 appendLog(if (code == 0) "result: exploit completed" else "result: exploit failed (exit code=$code)")
                 appendLog("exit code=$code")
             } finally {
@@ -1024,7 +1024,7 @@ class GhostlockViewModel(
         when {
             renameTarget != null -> renameUserProfile(renameTarget, value)
             dialogType == DialogType.INPUT -> parseUrl(value)
-            dialogType == DialogType.CONFIRM -> toggleShizuku(true)
+            dialogType == DialogType.CONFIRM -> toggleBrevent(true)
             else -> Unit
         }
     }
@@ -1062,8 +1062,8 @@ class GhostlockViewModel(
                 cpuPairIndex = snapshot.selectedCpuPair,
                 safeModeEnabled = snapshot.safeModeEnabled,
                 forceAttackTestEnabled = snapshot.forceAttackTest,
-                shizukuEnabled = snapshot.shizukuEnabled,
-                shizukuStatus = snapshot.shizukuStatus,
+                breventEnabled = snapshot.breventEnabled,
+                breventStatus = snapshot.breventStatus,
                 profileInvalidPaths = loaded?.invalidPaths ?: emptySet(),
                 executionHasProfile = loaded?.hasProfile ?: false,
                 customCpuPair = loaded?.let(::customCpuPairOf),
@@ -1506,7 +1506,7 @@ class GhostlockViewModel(
         LogTone.Warning -> 0xFFFFC94D.toInt()
         LogTone.Progress -> 0xFF60A5FA.toInt()
         LogTone.Kotlin -> 0xFF5EEAD4.toInt()
-        LogTone.Shizuku -> 0xFFC084FC.toInt()
+        LogTone.Brevent -> 0xFFC084FC.toInt()
         LogTone.Default -> -1
     }
 

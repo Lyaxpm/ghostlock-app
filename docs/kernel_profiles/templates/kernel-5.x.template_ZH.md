@@ -14,7 +14,7 @@
 <tr><td><code>kernel_major</code></td><td><code>5</code></td><td>内核主版本（5 或 6），供地址解析和合法性检查使用。</td></tr>
 <tr><td><code>kernel_phys_load</code></td><td></td><td>内核物理加载地址（0 时按 SoC 公式回退）。</td></tr>
 <tr><td><code>kernel_phys_offset</code></td><td></td><td>DRAM 基址 / linear-map <code>PHYS_OFFSET</code>，用于 image&rarr;direct-map 换算；取自 <code>/proc/iomem</code>，无法从 <code>boot.img</code> 提取。</td></tr>
-<tr><td><code>recommend_shizuku</code></td><td><code>1</code></td><td>是否建议在这台设备上通过 Shizuku 运行（0/1，默认 0，仅提示）。</td></tr>
+<tr><td><code>recommend_shizuku</code></td><td><code>1</code></td><td>是否建议在这台设备上通过 Brevent 运行（0/1，默认 0，仅提示）。</td></tr>
 <tr><th rowspan="15">task_struct 结构偏移</th><td><code>task_struct.prio</code></td><td></td><td><code>task_struct.prio</code>，PI 优先级提升判定会读它。</td><td rowspan="15">错误值会改变目标选择、结构边界或竞态时序，可能导致失败、死锁、内存破坏、黑屏或重启。</td><td rowspan="15">该值保持 5.x 已验证基线，但不是稳定 ABI；新设备必须用同一目标镜像逐项复核。</td></tr>
 <tr><td><code>task_struct.normal_prio</code></td><td></td><td>常规调度优先级字段。</td></tr>
 <tr><td><code>task_struct.sched_task_group</code></td><td></td><td>调度组指针 <code>sched_task_group</code> 的偏移。</td></tr>

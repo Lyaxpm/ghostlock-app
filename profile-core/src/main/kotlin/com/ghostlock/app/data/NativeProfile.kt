@@ -20,7 +20,7 @@ data class NativeProfileDocument(
     val release: String,
     val routeKind: UInt,
     val kernelMajor: UInt,
-    val recommendShizuku: UInt,
+    val recommendBrevent: UInt,
     val fallbackRoute: UInt,
     val taskStruct: TaskStructOffsets,
     val cred: CredTemplate,
@@ -77,7 +77,7 @@ data class NativeProfileDocument(
                 "meta",
                 listOf(
                     "kernel_major" to kernelMajor.toULong(),
-                    "recommend_shizuku" to recommendShizuku.toULong(),
+                    "recommend_shizuku" to recommendBrevent.toULong(),
                     "fallback_route" to fallbackRoute.toULong(),
                     "safe_mode" to safeMode.toULong(),
                 ),
@@ -353,7 +353,7 @@ data class NativeProfileDocument(
                 release = release,
                 routeKind = routeKind(route),
                 kernelMajor = vu("kernel_major"),
-                recommendShizuku = vu("recommend_shizuku"),
+                recommendBrevent = vu("recommend_shizuku"),
                 fallbackRoute = routeKind(fallbackTo),
                 taskStruct = TaskStructOffsets(
                     prio = vu("task_struct.prio"),
@@ -443,7 +443,7 @@ data class NativeProfileDocument(
             private val routeKind: RouteKind,
         ) {
             private var metaKernelMajor = 0u
-            private var metaRecommendShizuku = 0u
+            private var metaRecommendBrevent = 0u
             private var metaFallbackRoute = 0u
             private var metaSafeMode = 0u
             private var task = TaskStructOffsets()
@@ -465,7 +465,7 @@ data class NativeProfileDocument(
                 when (section) {
                     "meta" -> when (key) {
                         "kernel_major" -> metaKernelMajor = raw.toUInt()
-                        "recommend_shizuku" -> metaRecommendShizuku = raw.toUInt()
+                        "recommend_shizuku" -> metaRecommendBrevent = raw.toUInt()
                         "fallback_route" -> metaFallbackRoute = raw.toUInt()
                         "safe_mode" -> metaSafeMode = raw.toUInt()
                     }
@@ -604,7 +604,7 @@ data class NativeProfileDocument(
                 release = release,
                 routeKind = routeKind.wire,
                 kernelMajor = metaKernelMajor,
-                recommendShizuku = metaRecommendShizuku,
+                recommendBrevent = metaRecommendBrevent,
                 fallbackRoute = metaFallbackRoute,
                 taskStruct = task,
                 cred = credential,

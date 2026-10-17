@@ -43,7 +43,7 @@ filesDir/offsets.conf                     解析/导入的偏移（imported，HO
         ▼  ProfileConfigController.resolve（Kotlin）
    resolved profile（单对象，全字段已合并）
         │
-        ├──▶ 运行：类型化二进制（direct 与 Shizuku 都把字节写入 native 的 stdin）
+        ├──▶ 运行：类型化二进制（direct 与 Brevent 都把字节写入 native 的 stdin）
         │      native 只做解析与几何使用，不再做参数校验
         ├──▶ 快照：filesDir/<release>.conf（HOCON，导出配置的源）
         └──▶ UI：参数覆盖页 / 高级参数覆盖树
@@ -185,7 +185,7 @@ cred
 | `offset.slide_nfulnl_logger` / `offset.slide_boot_id` / `offset.slide_loggers_0_1` | 地址滑移（KASLR）定位点 |
 | `kernel_phys_load` | 内核物理加载地址（0 时按 SoC 公式回退） |
 | `kernel_phys_offset` | DRAM 基址 / linear-map `PHYS_OFFSET`，用于 image→direct-map 换算（缺省用编译期 `P0_PHYS_OFFSET = 0x80000000`）。DRAM 基址不同的设备需填写（如 MTK `0x40000000`）；无法从 `boot.img` 提取，取自 `/proc/iomem` |
-| `recommend_shizuku` | 该内核是否建议走 Shizuku（0/1，所有 profile 必填，默认 0；仅提示不强制）。不在任何编辑器中显示：推荐内核在**每次启动时自动打开**主页“Run via Shizuku”开关，会话内可手动关闭，关闭后本次会话不再要求 Shizuku |
+| `recommend_shizuku` | 该内核是否建议走 Brevent（0/1，所有 profile 必填，默认 0；仅提示不强制）。不在任何编辑器中显示：推荐内核在**每次启动时自动打开**主页“Run via Brevent”开关，会话内可手动关闭，关闭后本次会话不再要求 Brevent |
 
 ### 4.4 select_stack / tcp 路由字段
 
@@ -263,7 +263,7 @@ cred
   `u32 magic(0x0D000721) + u16 version(2) + u16 frontend + u16 backend + u16 middleware + u16 release_len + u16 reserved`，
   随后是 `release` 文本、`u16 section_count`，每个 section 为 `u8 name_len + name + u32 entry_count`，每个条目为 `u8 key_len + key + u64 value`。
   presence 由键是否出现表达（缺席 ≠ 提供的 0）；值为 u64 原始位型（有符号为二补数），不做 clamp；只写/接受**当前 route** 的 `route.*` section；未知 section/键忽略；重复键 last-wins。`middleware` 承载 route。权威 section/键表在 `profile/binary.cpp`（`kSections`），`NativeProfile.kt` 的对象 section 必须逐字对齐。
-- 传输路径：direct 与 Shizuku 都把 profile 以 **stdin** 交给 native（`--ghostlock-app-call`），不再落盘 `active-profile.bin`、也不再使用 `--profile`。
+- 传输路径：direct 与 Brevent 都把 profile 以 **stdin** 交给 native（`--ghostlock-app-call`），不再落盘 `active-profile.bin`、也不再使用 `--profile`。
 - native 只有一条解码路径：`profile/entry.cpp` 把 stdin（或文件）字节交给 `profile/binary.cpp::parse`；它不检测 magic 之外的格式，也没有 JSON 回退。
 - 内部存储与“导出配置”均为 HOCON（人类可读）；旧 v1 `offsets.json` 只在 Kotlin 侧转成 v2，见第 11 节。
 - 运行时路由与能力判断（`TargetProfile::route()`、`TargetProfile::supports()`、`route_capability`）全部基于解析后的 route。

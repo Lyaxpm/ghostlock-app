@@ -220,11 +220,11 @@ class UserProfileStoreTest {
     }
 
     @Test
-    fun `shizuku recommendation comes from any stored document`() {
+    fun `brevent recommendation comes from any stored document`() {
         withStore { store ->
             store.save("rec.json", """[{"release": "r", "recommend_shizuku": 1}]""")
-            assertTrue(store.recommendsShizuku("r"))
-            assertFalse(store.recommendsShizuku("other"))
+            assertTrue(store.recommendsBrevent("r"))
+            assertFalse(store.recommendsBrevent("other"))
         }
     }
 

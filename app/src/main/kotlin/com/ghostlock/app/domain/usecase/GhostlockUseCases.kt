@@ -28,8 +28,8 @@ class ParseSourceUseCase(private val repository: GhostlockRepository) {
 }
 
 class RunExploitUseCase(private val repository: GhostlockRepository) {
-    suspend operator fun invoke(pair: CpuPair, useShizuku: Boolean, onLog: (String) -> Unit) =
-        if (useShizuku) repository.runExploitWithShizuku(pair, onLog)
+    suspend operator fun invoke(pair: CpuPair, useBrevent: Boolean, onLog: (String) -> Unit) =
+        if (useBrevent) repository.runExploitWithBrevent(pair, onLog)
         else repository.runExploit(pair, onLog)
 }
 
