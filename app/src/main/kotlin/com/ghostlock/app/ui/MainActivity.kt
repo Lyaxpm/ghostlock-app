@@ -188,7 +188,9 @@ private fun GhostlockRoute(
 
             override fun onBreventChanged(enabled: Boolean) = viewModel.toggleBrevent(enabled)
             override fun onBreventDialogDismiss() = viewModel.onBreventDialogDismiss()
-            override fun onBreventRetry() = viewModel.onBreventRetry()
+            override fun onBreventRetry() {
+                viewModel.onBreventRetry()
+            }
             override fun onOpenBrevent() = viewModel.onOpenBrevent()
             override fun onCopyBreventDiagnostics() = viewModel.onCopyBreventDiagnostics()
             override fun onDialogItemSelected(index: Int) = viewModel.onDialogItemSelected(index)
