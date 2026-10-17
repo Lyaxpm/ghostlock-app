@@ -256,7 +256,6 @@
     <string name="fallback_label">Fallback route</string>
     <string name="fallback_none">None</string>
     <string name="field_fallback_to">fallback_to</string>
-</resources>
 
     <string name="brevent_status_not_installed">Brevent is not installed</string>
     <string name="brevent_status_unavailable">Brevent execution unavailable</string>
@@ -270,3 +269,4 @@
     <string name="run_blocked_brevent_authorization">Brevent refused the command (token/permission gate). Use direct mode</string>
     <string name="run_blocked_brevent_unavailable">Brevent command channel unavailable; check diagnostics</string>
     <string name="run_blocked_brevent_error">Brevent check failed; tap the status card for details</string>
+</resources>

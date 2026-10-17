@@ -24,16 +24,16 @@ object BreventScript {
         val quotedArgs = args.joinToString(" ") { shellQuote(it) }
         return buildString {
             append("d=").append(workDir).append("; ")
-            append("rm -rf $d; mkdir -p $d || exit 7; ")
+            append("rm -rf \$d; mkdir -p \$d || exit 7; ")
             append("printf %s ").append(shellQuote(encoded))
-                .append(" | base64 -d > $d/in.bin || exit 8; ")
-            append("cp ").append(shellQuote(binaryPath)).append(" $d/ghostlock || exit 9; ")
-            append("chmod 0755 $d/ghostlock || exit 9; ")
-            append("cd $d || exit 9; ")
-            append("GHOSTLOCK_HOME=$d TMPDIR=$d HOME=$d GHOSTLOCK_KSU_LOG=$d/ksu.log ")
-            append("$d/ghostlock ")
+                .append(" | base64 -d > \$d/in.bin || exit 8; ")
+            append("cp ").append(shellQuote(binaryPath)).append(" \$d/ghostlock || exit 9; ")
+            append("chmod 0755 \$d/ghostlock || exit 9; ")
+            append("cd \$d || exit 9; ")
+            append("GHOSTLOCK_HOME=\$d TMPDIR=\$d HOME=\$d GHOSTLOCK_KSU_LOG=\$d/ksu.log ")
+            append("\$d/ghostlock ")
             if (quotedArgs.isNotEmpty()) append(quotedArgs).append(' ')
-            append("< $d/in.bin; ")
+            append("< \$d/in.bin; ")
             append("echo ").append(EXIT_MARKER).append("$?")
         }
     }
