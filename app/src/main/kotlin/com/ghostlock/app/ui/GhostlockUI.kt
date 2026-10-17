@@ -23,8 +23,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CheckCircleOutline
 import androidx.compose.material.icons.rounded.ErrorOutline
@@ -98,6 +100,9 @@ data class GhostlockUiState(
     val kernelSupported: Boolean = false,
     val breventEnabled: Boolean = false,
     val breventStatus: BreventStatus = BreventStatus.NOT_REQUIRED,
+    val breventDialogVisible: Boolean = false,
+    val breventDiagnostics: String = "",
+    val breventDiagnosticsBusy: Boolean = false,
     val running: Boolean = false,
     val cpuPairLabels: List<String> = emptyList(),
     val cpuPairIndex: Int = 0,
@@ -184,6 +189,10 @@ interface GhostlockActions {
     fun onSafeModeChanged(enabled: Boolean)
     fun onForceAttackTestChanged(enabled: Boolean)
     fun onBreventChanged(enabled: Boolean)
+    fun onBreventDialogDismiss()
+    fun onBreventRetry()
+    fun onOpenBrevent()
+    fun onCopyBreventDiagnostics()
     fun onDialogItemSelected(index: Int)
     fun onDialogInputChange(value: String)
     fun onDialogConfirm(value: String)
@@ -366,6 +375,7 @@ internal fun GhostlockApp(
                 }
                 GhostlockDialog(state = state, actions = actions)
                 GhostlockOverwriteDialog(state = state, actions = actions)
+                GhostlockBreventDialog(state = state, actions = actions)
                 GhostlockExecutionSheet(state = state, actions = actions)
             }
         }
@@ -613,6 +623,86 @@ private fun GhostlockOverwriteDialog(
 }
 
 @Composable
+private fun GhostlockBreventDialog(
+    state: GhostlockUiState,
+    actions: GhostlockActions,
+) {
+    OverlayDialog(
+        show = state.breventDialogVisible,
+        title = stringResource(R.string.brevent_dialog_title),
+        summary = stringResource(breventStatusSummaryRes(state.breventStatus)),
+        onDismissRequest = actions::onBreventDialogDismiss,
+        content = {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                if (state.breventDiagnosticsBusy) {
+                    Text(
+                        text = stringResource(R.string.brevent_status_checking),
+                        style = MiuixTheme.textStyles.body2,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    )
+                } else if (state.breventDiagnostics.isNotBlank()) {
+                    SelectionContainer {
+                        Text(
+                            text = state.breventDiagnostics,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 260.dp)
+                                .verticalScroll(rememberScrollState()),
+                            style = MiuixTheme.textStyles.body2,
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 12.sp,
+                        )
+                    }
+                }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 16.dp),
+                ) {
+                    TextButton(
+                        modifier = Modifier.weight(1f),
+                        text = stringResource(R.string.brevent_open),
+                        onClick = actions::onOpenBrevent,
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    TextButton(
+                        modifier = Modifier.weight(1f),
+                        text = stringResource(R.string.brevent_check_again),
+                        onClick = actions::onBreventRetry,
+                    )
+                }
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    TextButton(
+                        modifier = Modifier.weight(1f),
+                        text = stringResource(R.string.brevent_copy_diagnostics),
+                        onClick = actions::onCopyBreventDiagnostics,
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    TextButton(
+                        modifier = Modifier.weight(1f),
+                        text = stringResource(R.string.dialog_dismiss),
+                        colors = ButtonDefaults.textButtonColorsPrimary(),
+                        onClick = actions::onBreventDialogDismiss,
+                    )
+                }
+            }
+        },
+    )
+}
+
+/** Single source of truth for the Brevent status wording. */
+private fun breventStatusSummaryRes(status: BreventStatus): Int = when (status) {
+    BreventStatus.NOT_REQUIRED -> R.string.brevent_summary
+    BreventStatus.NOT_INSTALLED -> R.string.brevent_status_not_installed
+    BreventStatus.SERVICE_NOT_RUNNING -> R.string.brevent_status_not_running
+    BreventStatus.CHECKING -> R.string.brevent_status_checking
+    BreventStatus.AUTHORIZATION_REQUIRED -> R.string.brevent_status_permission_required
+    BreventStatus.EXECUTION_UNAVAILABLE -> R.string.brevent_status_unavailable
+    BreventStatus.READY -> R.string.brevent_status_ready
+    BreventStatus.ERROR -> R.string.brevent_status_error
+}
+
+@Composable
 private fun MainContent(
     state: GhostlockUiState,
     actions: GhostlockActions,
@@ -711,17 +801,8 @@ private fun ControlPanel(
                 onCheckedChange = actions::onBreventChanged,
                 title = stringResource(R.string.brevent_label),
                 summary = stringResource(
-                    when {
-                        !state.breventEnabled -> R.string.brevent_summary
-                        state.breventStatus == BreventStatus.READY -> R.string.brevent_status_ready
-                        state.breventStatus == BreventStatus.PERMISSION_REQUIRED ->
-                            R.string.brevent_status_permission_required
-
-                        state.breventStatus == BreventStatus.NOT_RUNNING ->
-                            R.string.brevent_status_not_running
-
-                        else -> R.string.brevent_status_checking
-                    },
+                    if (!state.breventEnabled) R.string.brevent_summary
+                    else breventStatusSummaryRes(state.breventStatus),
                 ),
             )
         }
@@ -782,10 +863,7 @@ private fun ActivationStatusCard(
         !supported -> R.string.kernel_unsupported_summary
         !profileAvailable -> R.string.kernel_profile_required_summary
         !profileValid -> R.string.kernel_profile_invalid_summary
-        breventStatus == BreventStatus.PERMISSION_REQUIRED ->
-            R.string.brevent_status_permission_required
-
-        else -> R.string.brevent_status_not_running
+        else -> breventStatusSummaryRes(breventStatus)
     }
     val action = if (supported && profileAvailable && profileValid && !accessReady) {
         onBreventClick

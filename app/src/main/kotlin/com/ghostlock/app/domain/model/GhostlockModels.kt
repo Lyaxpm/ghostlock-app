@@ -22,7 +22,84 @@ data class KernelSnapshot(
     val breventStatus: BreventStatus,
 )
 
-enum class BreventStatus { NOT_REQUIRED, NOT_RUNNING, PERMISSION_REQUIRED, READY }
+/**
+ * Honest Brevent readiness. Every value except [READY] is a distinct,
+ * observable failure; [READY] is only reached after a command actually ran over
+ * the vendor loopback channel and reported a shell/root uid.
+ */
+enum class BreventStatus {
+    /** The user has not selected the Brevent path. */
+    NOT_REQUIRED,
+
+    /** `me.piebridge.brevent` is not installed. */
+    NOT_INSTALLED,
+
+    /** Installed, but nothing is listening on the loopback command port. */
+    SERVICE_NOT_RUNNING,
+
+    /** A check is in flight. */
+    CHECKING,
+
+    /** The server is up but refused the command (vendor token/DEVICE_POWER). */
+    AUTHORIZATION_REQUIRED,
+
+    /** The server answered, but the execution environment could not be proven. */
+    EXECUTION_UNAVAILABLE,
+
+    /** A command ran and verified a shell/root uid. */
+    READY,
+
+    /** The check itself failed (unexpected error). */
+    ERROR,
+}
+
+/** Whether the Brevent command channel actually accepted a command. */
+enum class BreventAuthorization { NOT_PROBED, GRANTED, DENIED, ERROR }
+
+/**
+ * Full, copyable record of the last Brevent check. It is intentionally verbose
+ * and lists the evidence behind [status]; nothing here is inferred from the
+ * fact that Brevent is merely installed.
+ */
+data class BreventDiagnostics(
+    val status: BreventStatus,
+    val packageName: String = "me.piebridge.brevent",
+    val installed: Boolean = false,
+    val versionName: String? = null,
+    val versionCode: Long = 0L,
+    val commandIntentResolvable: Boolean = false,
+    val serverReachable: Boolean = false,
+    val serverOk: Boolean = false,
+    val probeError: String? = null,
+    val authorization: BreventAuthorization = BreventAuthorization.NOT_PROBED,
+    val verifiedUid: Int? = null,
+    val verifiedOutput: String? = null,
+    val notes: List<String> = emptyList(),
+) {
+    fun report(): String = buildString {
+        appendLine("GhostLock Brevent diagnostics")
+        appendLine("status: ${status.name}")
+        appendLine("package: $packageName")
+        appendLine("installed: $installed")
+        appendLine("versionName: ${versionName ?: "(unknown)"}")
+        appendLine("versionCode: $versionCode")
+        appendLine("commandIntentResolvable: $commandIntentResolvable")
+        appendLine("serverReachable: $serverReachable (loopback:${ BreventPort })")
+        appendLine("serverHandshakeOk: $serverOk")
+        appendLine("probeError: ${probeError ?: "(none)"}")
+        appendLine("authorization: ${authorization.name}")
+        appendLine("verifiedUid: ${verifiedUid ?: "(none)"}")
+        appendLine("verifiedOutput: ${verifiedOutput?.trim() ?: "(none)"}")
+        if (notes.isNotEmpty()) {
+            appendLine("notes:")
+            notes.forEach { appendLine("  - $it") }
+        }
+    }
+
+    private companion object {
+        const val BreventPort = 59526
+    }
+}
 
 enum class LogTone { Default, Error, Success, Warning, Progress, Kotlin, Brevent }
 

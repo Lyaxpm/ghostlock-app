@@ -10,6 +10,8 @@ import androidx.core.content.edit
 import androidx.core.net.toUri
 import com.ghostlock.app.BuildConfig
 import com.ghostlock.app.BuildInfo
+import com.ghostlock.app.domain.model.BreventDiagnostics
+import com.ghostlock.app.domain.model.BreventStatus
 import com.ghostlock.app.domain.model.CpuPair
 import com.ghostlock.app.domain.model.DebugSettings
 import com.ghostlock.app.domain.model.KernelSnapshot
@@ -21,7 +23,12 @@ import com.ghostlock.app.domain.model.ProfileConfig
 import com.ghostlock.app.domain.model.UserProfileFile
 import com.ghostlock.app.domain.repository.GhostlockRepository
 import com.ghostlock.app.domain.repository.ProfileConfigController
-import com.ghostlock.app.brevent.BreventExploitRunner
+import com.ghostlock.app.brevent.BreventAvailabilityChecker
+import com.ghostlock.app.brevent.BreventCommandBackend
+import com.ghostlock.app.brevent.BreventExecRunner
+import com.ghostlock.app.brevent.BreventProtocolClient
+import com.ghostlock.app.brevent.BreventSocketBackend
+import com.ghostlock.app.brevent.ExecutionStateManager
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runInterruptible
@@ -96,7 +103,13 @@ class AndroidGhostlockRepository(context: Context) : GhostlockRepository {
      * profile suggestion (PROFILE-SUGGEST-01). */
     private var breventPreferenceSet = false
     private var pendingParsedDocument: PendingParsedDocument? = null
-    private val breventRunner = BreventExploitRunner(appContext)
+    private val breventExecRunner = BreventExecRunner(appContext)
+    private val breventStateManager = ExecutionStateManager(
+        checker = BreventAvailabilityChecker(appContext),
+        backendFactory = { versionCode: Long ->
+            BreventSocketBackend(BreventProtocolClient(versionCode.toInt()))
+        },
+    )
 
     init {
         buildCpuPairs()
@@ -155,7 +168,7 @@ class AndroidGhostlockRepository(context: Context) : GhostlockRepository {
          * it in both directions. */
         val recommendBrevent = release in builtinProfiles.recommendBrevent ||
             importedOffsetsRecommendBrevent(release)
-        val breventActive = if (breventPreferenceSet) breventEnabled else recommendBrevent
+        val breventActive = isBreventActive(recommendBrevent)
         return KernelSnapshot(
             deviceName = resolveDeviceName(),
             kernelRelease = release,
@@ -168,9 +181,19 @@ class AndroidGhostlockRepository(context: Context) : GhostlockRepository {
             forceAttackTest = forceAttackTest,
             recommendBrevent = recommendBrevent,
             breventEnabled = breventActive,
-            breventStatus = if (breventActive) breventRunner.status()
-            else com.ghostlock.app.domain.model.BreventStatus.NOT_REQUIRED,
+            breventStatus = if (breventActive) breventStateManager.status()
+            else BreventStatus.NOT_REQUIRED,
         )
+    }
+
+    /** Recomputes the Brevent path choice from the stored preference + profile. */
+    private fun isBreventActive(recommend: Boolean): Boolean =
+        if (breventPreferenceSet) breventEnabled else recommend
+
+    private fun currentRecommendBrevent(): Boolean {
+        val release = System.getProperty("os.version", "unknown").orEmpty()
+        return release in builtinProfiles.recommendBrevent ||
+            importedOffsetsRecommendBrevent(release)
     }
 
     override fun selectCpuPair(index: Int) {
@@ -198,7 +221,8 @@ class AndroidGhostlockRepository(context: Context) : GhostlockRepository {
                 putBoolean("brevent_enabled", enabled)
                 putBoolean("brevent_explicit", true)
             }
-        if (enabled) breventRunner.requestPermission()
+        /* No permission request exists on the Brevent side; the caller triggers
+         * refreshBrevent() so the state is re-derived from real evidence. */
     }
 
     override fun profileController(): ProfileConfigController = profileController
@@ -430,13 +454,23 @@ class AndroidGhostlockRepository(context: Context) : GhostlockRepository {
                         profileBlob
                     }
                     dumpRuntimeProfile(archivedLog, writeSidecar, release, pair, runtimeBlob)
-                    archivedLog("<b> starting UserService")
-                    resetRunState()
-                    breventRunner.run(
-                        pair, safeModeEnabled, forceAttackTest, profileBlob, debugDir, archivedLog,
-                    ) { step, status ->
-                        if (status == "disabled") clearRunState() else applyRunStatus(step, status)
+                    val backend = breventStateManager.currentBackend()
+                    if (backend == null || breventStateManager.status() != BreventStatus.READY) {
+                        archivedLog(
+                            "<s> error: Brevent is not ready " +
+                                "(${breventStateManager.status()}); the command channel is unusable",
+                        )
+                        return@withDebugAttackLog 1
                     }
+                    archivedLog("<b> starting via Brevent command channel")
+                    breventExecRunner.run(
+                        pair = pair,
+                        forceAttack = forceAttackTest,
+                        profileBlob = profileBlob,
+                        debugDir = debugDir,
+                        backend = backend,
+                        onLog = archivedLog,
+                    )
                 }
             }
         }
@@ -562,10 +596,14 @@ class AndroidGhostlockRepository(context: Context) : GhostlockRepository {
         }
     }
 
-    override fun requestBreventPermission() = breventRunner.requestPermission()
+    override suspend fun refreshBrevent(): BreventStatus {
+        val recommend = currentRecommendBrevent()
+        val selected = isBreventActive(recommend)
+        return withContext(Dispatchers.IO) { breventStateManager.refresh(selected) }
+    }
 
-    override fun setBreventStatusListener(listener: (() -> Unit)?) =
-        breventRunner.setStatusListener(listener)
+    override suspend fun breventDiagnostics(): BreventDiagnostics =
+        withContext(Dispatchers.IO) { breventStateManager.diagnostics() }
 
     private suspend fun runExploitBinary(
         pair: CpuPair,
@@ -862,7 +900,6 @@ class AndroidGhostlockRepository(context: Context) : GhostlockRepository {
     }
 
     override fun close() {
-        breventRunner.close()
         synchronized(processes) {
             processes.forEach(Process::destroyForcibly)
             processes.clear()

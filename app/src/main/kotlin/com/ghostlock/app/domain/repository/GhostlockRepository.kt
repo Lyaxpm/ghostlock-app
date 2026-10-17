@@ -1,5 +1,7 @@
 package com.ghostlock.app.domain.repository
 
+import com.ghostlock.app.domain.model.BreventDiagnostics
+import com.ghostlock.app.domain.model.BreventStatus
 import com.ghostlock.app.domain.model.CpuPair
 import com.ghostlock.app.domain.model.DebugSettings
 import com.ghostlock.app.domain.model.KernelSnapshot
@@ -119,9 +121,15 @@ interface GhostlockRepository {
      */
     suspend fun lastRunStuckStep(): String?
 
-    fun requestBreventPermission()
+    /**
+     * Re-derives the Brevent status from real evidence: package install, the
+     * loopback command server, and a verified shell/root uid. Blocking I/O, so
+     * callers run it off the main thread. Returns the fresh [BreventStatus].
+     */
+    suspend fun refreshBrevent(): BreventStatus
 
-    fun setBreventStatusListener(listener: (() -> Unit)?)
+    /** Copyable record of the last Brevent check (for the diagnostic log). */
+    suspend fun breventDiagnostics(): BreventDiagnostics
 
     fun close()
 }

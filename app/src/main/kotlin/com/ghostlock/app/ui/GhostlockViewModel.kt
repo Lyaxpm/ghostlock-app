@@ -88,7 +88,6 @@ class GhostlockViewModel(
     fun initialize() {
         if (initialized) return
         initialized = true
-        repository.setBreventStatusListener { refreshAccessStatus() }
         viewModelScope.launch {
             refreshSnapshot()
             applyRecommendedBrevent()
@@ -837,8 +836,8 @@ class GhostlockViewModel(
         if (!enabled && kernelSnapshot?.recommendBrevent == true) {
             send(GhostlockEffect.Toast(R.string.brevent_recommended_hint))
         }
-        // The grant dialog lands in another app, so the status is re-read and
-        // onResume() refreshes it again when the dialog closes.
+        // The probe + command verification run off the main thread; onResume()
+        // re-checks when the user returns from the Brevent app.
         viewModelScope.launch { refreshSnapshot() }
     }
 
@@ -850,11 +849,21 @@ class GhostlockViewModel(
         val messageRes = when {
             !state.executionHasProfile -> R.string.run_blocked_no_profile
             state.breventEnabled && state.breventStatus != BreventStatus.READY ->
-                R.string.run_blocked_brevent
+                breventBlockedMessage(state.breventStatus)
 
             else -> R.string.profile_invalid
         }
         send(GhostlockEffect.Toast(messageRes))
+    }
+
+    /** A status-specific reason, never a generic "not ready". */
+    private fun breventBlockedMessage(status: BreventStatus): Int = when (status) {
+        BreventStatus.NOT_INSTALLED -> R.string.run_blocked_brevent_not_installed
+        BreventStatus.SERVICE_NOT_RUNNING -> R.string.run_blocked_brevent_service
+        BreventStatus.AUTHORIZATION_REQUIRED -> R.string.run_blocked_brevent_authorization
+        BreventStatus.EXECUTION_UNAVAILABLE -> R.string.run_blocked_brevent_unavailable
+        BreventStatus.ERROR -> R.string.run_blocked_brevent_error
+        else -> R.string.run_blocked_brevent
     }
 
     fun onStatusClick() {
@@ -862,13 +871,38 @@ class GhostlockViewModel(
         /* breventEnabled already carries the profile suggestion unless the
          * user overrode it (PROFILE-SUGGEST-01). */
         if (!snapshot.breventEnabled) return
-        when (snapshot.breventStatus) {
-            BreventStatus.NOT_RUNNING -> send(GhostlockEffect.OpenBrevent)
-            BreventStatus.PERMISSION_REQUIRED -> repository.requestBreventPermission()
-            BreventStatus.NOT_REQUIRED,
-            BreventStatus.READY,
-                -> Unit
+        mutableState.update { it.copy(breventDialogVisible = true) }
+        viewModelScope.launch { refreshBreventDialog() }
+    }
+
+    /** Re-checks Brevent and refreshes the diagnostic report in the dialog. */
+    fun onBreventRetry() = viewModelScope.launch { refreshBreventDialog() }
+
+    private suspend fun refreshBreventDialog() {
+        mutableState.update { it.copy(breventDiagnosticsBusy = true) }
+        val status = runCatching { repository.refreshBrevent() }.getOrDefault(BreventStatus.ERROR)
+        val report = runCatching { repository.breventDiagnostics().report() }.getOrDefault("")
+        kernelSnapshot = kernelSnapshot?.copy(breventStatus = status)
+        mutableState.update {
+            it.copy(
+                breventStatus = status,
+                breventDiagnostics = report,
+                breventDiagnosticsBusy = false,
+            )
         }
+    }
+
+    fun onBreventDialogDismiss() {
+        mutableState.update { it.copy(breventDialogVisible = false) }
+    }
+
+    fun onOpenBrevent() = send(GhostlockEffect.OpenBrevent)
+
+    fun onCopyBreventDiagnostics() {
+        val text = state.value.breventDiagnostics
+        if (text.isBlank()) return
+        send(GhostlockEffect.Clipboard(text))
+        send(GhostlockEffect.Toast(R.string.copied))
     }
 
     private fun runExploit() {
@@ -882,6 +916,7 @@ class GhostlockViewModel(
         }
         val useBrevent = snapshot.breventEnabled
         if (useBrevent && snapshot.breventStatus != BreventStatus.READY) {
+            send(GhostlockEffect.Toast(breventBlockedMessage(snapshot.breventStatus)))
             onStatusClick()
             return
         }
@@ -1051,7 +1086,15 @@ class GhostlockViewModel(
                 ?: return@withContext null
             runCatching { profileController.load(snapshot.kernelRelease, pair) }.getOrNull()
         }
-        kernelSnapshot = snapshot
+        /* Brevent readiness is re-derived from real evidence off the main
+         * thread; snapshot() only returns the cached value. */
+        val breventStatus = if (snapshot.breventEnabled) {
+            mutableState.update { it.copy(breventStatus = BreventStatus.CHECKING) }
+            runCatching { repository.refreshBrevent() }.getOrDefault(BreventStatus.ERROR)
+        } else {
+            BreventStatus.NOT_REQUIRED
+        }
+        kernelSnapshot = snapshot.copy(breventStatus = breventStatus)
         mutableState.update {
             it.copy(
                 deviceName = snapshot.deviceName,
@@ -1063,7 +1106,7 @@ class GhostlockViewModel(
                 safeModeEnabled = snapshot.safeModeEnabled,
                 forceAttackTestEnabled = snapshot.forceAttackTest,
                 breventEnabled = snapshot.breventEnabled,
-                breventStatus = snapshot.breventStatus,
+                breventStatus = breventStatus,
                 profileInvalidPaths = loaded?.invalidPaths ?: emptySet(),
                 executionHasProfile = loaded?.hasProfile ?: false,
                 customCpuPair = loaded?.let(::customCpuPairOf),
